@@ -1,0 +1,40 @@
+### Build ###
+/target
+/build
+
+### IDE ###
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+.sts4-cache
+.apt_generated
+.factorypath
+
+### Maven Wrapper ###
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+mvnw
+mvnw.cmd
+
+### Logs ###
+*.log
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Application configuration (sécurité) ###
+application.properties
+.env
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
