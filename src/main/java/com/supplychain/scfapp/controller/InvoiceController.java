@@ -2,7 +2,11 @@ package com.supplychain.scfapp.controller;
 
 import com.supplychain.scfapp.model.Invoice;
 import com.supplychain.scfapp.model.InvoiceStatus;
-import com.supplychain.scfapp.repository.InvoiceRepository;
+import com.supplychain.scfapp.model.User;
+import com.supplychain.scfapp.repository.UserRepository;
+import com.supplychain.scfapp.service.InvoiceService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,51 +15,56 @@ import java.util.List;
 @RequestMapping("/invoices")
 public class InvoiceController {
 
-    private final InvoiceRepository invoiceRepository;
+    private final InvoiceService invoiceService;
+    private final UserRepository userRepository;
 
-    public InvoiceController(InvoiceRepository invoiceRepository) {
-        this.invoiceRepository = invoiceRepository;
+    public InvoiceController(InvoiceService invoiceService, UserRepository userRepository) {
+        this.invoiceService = invoiceService;
+        this.userRepository = userRepository;
     }
 
-    // ✅ Liste toutes les factures
+    /**
+     * Liste des factures selon le rôle de l'utilisateur connecté.
+     * - Admin : toutes les factures
+     * - Supplier : uniquement ses factures
+     * - Buyer : uniquement ses factures à payer
+     */
     @GetMapping
-    public List<Invoice> getAll() {
-        return invoiceRepository.findAll();
+    @PreAuthorize("hasAnyRole('ADMIN','SUPPLIER','BUYER')")
+    public List<Invoice> getAll(Authentication auth) {
+        User user = userRepository.findByUsername(auth.getName()).orElseThrow();
+        return invoiceService.getInvoicesForUser(user);
     }
 
-    // ✅ Filtrage par statut
+    /**
+     * Filtrer les factures par statut (limité par rôle)
+     */
     @GetMapping("/status")
-    public List<Invoice> getByStatus(@RequestParam InvoiceStatus value) {
-        return invoiceRepository.findByStatus(value);
+    @PreAuthorize("hasAnyRole('ADMIN','SUPPLIER','BUYER')")
+    public List<Invoice> getByStatus(@RequestParam InvoiceStatus value, Authentication auth) {
+        User user = userRepository.findByUsername(auth.getName()).orElseThrow();
+        return invoiceService.getInvoicesByStatus(user, value);
     }
 
-    // ✅ Crée une nouvelle facture
+    /**
+     * Créer une nouvelle facture (Supplier uniquement)
+     */
     @PostMapping
-    public Invoice create(@RequestBody Invoice invoice) {
-        return invoiceRepository.save(invoice);
+    @PreAuthorize("hasRole('SUPPLIER')")
+    public Invoice create(@RequestBody Invoice invoice, Authentication auth) {
+        User supplier = userRepository.findByUsername(auth.getName()).orElseThrow();
+        return invoiceService.createInvoice(supplier, invoice);
     }
 
-    // ✅ Change le statut de manière sécurisée
+    /**
+     * Changer le statut d'une facture (Buyer/Admin uniquement)
+     * - Buyer ne peut changer que ses factures
+     * - Admin peut changer n'importe quelle facture
+     */
     @PutMapping("/{id}/status")
-    public Invoice updateStatus(@PathVariable Long id, @RequestParam InvoiceStatus status) {
-        Invoice invoice = invoiceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Invoice not found"));
-
-        if (!isTransitionAllowed(invoice.getStatus(), status)) {
-            throw new RuntimeException("Transition from " + invoice.getStatus() + " to " + status + " is not allowed.");
-        }
-
-        invoice.setStatus(status);
-        return invoiceRepository.save(invoice);
-    }
-
-    // 🔒 Règles de transition métier
-    private boolean isTransitionAllowed(InvoiceStatus current, InvoiceStatus next) {
-        return switch (current) {
-            case UNDER_REVIEW -> next == InvoiceStatus.PENDING_APPROVAL || next == InvoiceStatus.REJECTED;
-            case PENDING_APPROVAL -> next == InvoiceStatus.VALIDATED || next == InvoiceStatus.REJECTED;
-            case VALIDATED -> next == InvoiceStatus.PAID;
-            default -> false; // REJECTED, PAID : pas de transition
-        };
+    @PreAuthorize("hasAnyRole('ADMIN','BUYER')")
+    public Invoice updateStatus(@PathVariable Long id, @RequestParam InvoiceStatus status, Authentication auth) {
+        User user = userRepository.findByUsername(auth.getName()).orElseThrow();
+        return invoiceService.updateInvoiceStatus(user, id, status);
     }
 }
