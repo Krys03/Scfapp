@@ -5,6 +5,7 @@ import com.supplychain.scfapp.model.User;
 import com.supplychain.scfapp.repository.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -13,60 +14,48 @@ import java.util.UUID;
 @Service
 public class RefreshTokenService {
 
-    @Value("${app.jwt.refresh-expiration}")
-    private long refreshTokenDurationMs;
+    @Value("${app.jwt.refresh-expiration:604800000}") // 7 jours par défaut
+    private long refreshExpirationMs;
 
-    private final RefreshTokenRepository refreshTokenRepo;
+    private final RefreshTokenRepository repo;
 
-    public RefreshTokenService(RefreshTokenRepository refreshTokenRepo) {
-        this.refreshTokenRepo = refreshTokenRepo;
+    public RefreshTokenService(RefreshTokenRepository repo) {
+        this.repo = repo;
     }
 
-    /**
-     * Crée un nouveau refresh token en révoquant l'ancien (rotation)
-     */
+    @Transactional
     public RefreshToken createRefreshToken(User user) {
-        Optional<RefreshToken> oldOpt = refreshTokenRepo.findByUser(user);
-        oldOpt.ifPresent(old -> {
-            old.setRevoked(true);
-            refreshTokenRepo.save(old);
-        });
+        // Option : révoquer tous les anciens refresh de cet utilisateur
+        repo.revokeAllByUserId(user.getId());
 
         RefreshToken rt = new RefreshToken();
         rt.setUser(user);
-        rt.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
         rt.setToken(UUID.randomUUID().toString());
+        rt.setExpiryDate(Instant.now().plusMillis(refreshExpirationMs));
         rt.setRevoked(false);
-        return refreshTokenRepo.save(rt);
+        return repo.save(rt);
     }
 
-    /**
-     * Vérifie l'expiration ET le statut revoked
-     */
-    public RefreshToken verifyExpiration(RefreshToken token) {
-        if (token.isRevoked()) {
-            refreshTokenRepo.delete(token);
-            throw new RuntimeException("Refresh token has been revoked. Please login again.");
-        }
-        if (token.getExpiryDate().isBefore(Instant.now())) {
-            refreshTokenRepo.delete(token);
-            throw new RuntimeException("Refresh token expired. Please login again.");
-        }
-        return token;
+    @Transactional(readOnly = true)
+    public Optional<RefreshToken> findByTokenWithUser(String token) {
+        return repo.findByTokenFetchUser(token);
     }
 
+    @Transactional(readOnly = true)
     public Optional<RefreshToken> findByToken(String token) {
-        return refreshTokenRepo.findByToken(token);
+        return repo.findByToken(token);
     }
 
-    /**
-     * Révocation manuelle (logout)
-     */
+    @Transactional
     public void revokeRefreshToken(User user) {
-        refreshTokenRepo.findByUser(user)
-            .ifPresent(rt -> {
-                rt.setRevoked(true);
-                refreshTokenRepo.save(rt);
-            });
+        repo.revokeAllByUserId(user.getId());
+    }
+
+    @Transactional
+    public void revokeTokenString(String token) {
+        repo.findByToken(token).ifPresent(rt -> {
+            rt.setRevoked(true);
+            repo.save(rt);
+        });
     }
 }

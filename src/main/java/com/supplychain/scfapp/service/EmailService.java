@@ -1,5 +1,8 @@
 package com.supplychain.scfapp.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+// 🔽 Décommente ces imports SEULEMENT si tu actives l'option EMAIL RÉEL
 // import org.springframework.mail.SimpleMailMessage;
 // import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -7,54 +10,64 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailService {
 
-    // private final JavaMailSender mailSender;
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
+    // ============================================================
+    // === OPTION 1 : FAKE EMAIL (LOG CONSOLE) — PAR DÉFAUT     ===
+    // ============================================================
+    // 👉 Laisse CE bloc décommenté, et commente le bloc "Option 2".
+    // Aucun bean JavaMailSender requis.
+
+    public void sendInvitationEmail(String to, String username, String password) {
+        String subject = "SCF - Invitation";
+        String body = "Bonjour,\n\nVotre compte a été créé.\n" +
+                "Identifiant : " + username + "\n" +
+                "Mot de passe temporaire : " + password + "\n\n" +
+                "Veuillez vous connecter et changer votre mot de passe.\n";
+        log.info("[FAKE EMAIL] To: {} | Subject: {} | Body:\n{}", to, subject, body);
+    }
+
+    public void sendResetEmail(String to, String resetLink) {
+        String subject = "SCF - Réinitialisation de mot de passe";
+        String body = "Cliquez sur ce lien pour réinitialiser votre mot de passe :\n" + resetLink;
+        log.info("[FAKE EMAIL] To: {} | Subject: {} | Body:\n{}", to, subject, body);
+    }
+
+    // ============================================================
+    // === OPTION 2 : EMAIL RÉEL (JavaMailSender) — MANUEL       ===
+    // ============================================================
+    // 👉 Pour activer l'envoi RÉEL :
+    //  1) COMMANDE le bloc FAKE ci-dessus (les 2 méthodes).
+    //  2) DÉCOMMANDE les imports, le champ mailSender et les méthodes ci-dessous.
+    //  3) Ajoute spring-boot-starter-mail dans le pom.xml si absent.
+    //  4) Configure spring.mail.* dans application.properties.
+
+    // private final JavaMailSender mailSender;
+    //
     // public EmailService(JavaMailSender mailSender) {
     //     this.mailSender = mailSender;
     // }
-
-    public void sendInvitationEmail(String to, String username, String password) {
-        // --- VERSION FAKE ---
-        System.out.println("=== INVITATION FAKE ===");
-        System.out.println("Destinataire : " + to);
-        System.out.println("Identifiant : " + username);
-        System.out.println("Mot de passe : " + password);
-        System.out.println("=======================");
-
-        // --- VERSION REELLE ---
-        /*
-        String subject = "Votre accès à la plateforme SCF";
-        String text = String.format(
-            "Bonjour,\n\nVotre compte a été créé sur la plateforme SCF.\n\nIdentifiants de connexion :\nUsername: %s\nPassword: %s\n\nMerci de vous connecter et de changer votre mot de passe immédiatement.",
-            username, password
-        );
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(text);
-        mailSender.send(message);
-        */
-    }
-
-    public void sendPasswordResetEmail(String to, String resetLink) {
-        // --- VERSION FAKE ---
-        System.out.println("=== RESET PASSWORD FAKE ===");
-        System.out.println("Destinataire : " + to);
-        System.out.println("Lien : " + resetLink);
-        System.out.println("===========================");
-
-        // --- VERSION REELLE ---
-        /*
-        String subject = "Réinitialisation de votre mot de passe SCF";
-        String text = String.format(
-            "Bonjour,\n\nVous avez demandé la réinitialisation de votre mot de passe.\nCliquez sur ce lien pour choisir un nouveau mot de passe :\n%s\n\nSi vous n'avez pas fait cette demande, ignorez cet email.",
-            resetLink
-        );
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(text);
-        mailSender.send(message);
-        */
-    }
+    //
+    // public void sendInvitationEmail(String to, String username, String password) {
+    //     String subject = "SCF - Invitation";
+    //     String body = "Bonjour,\n\nVotre compte a été créé.\n" +
+    //             "Identifiant : " + username + "\n" +
+    //             "Mot de passe temporaire : " + password + "\n\n" +
+    //             "Veuillez vous connecter et changer votre mot de passe.\n";
+    //     SimpleMailMessage msg = new SimpleMailMessage();
+    //     msg.setTo(to);
+    //     msg.setSubject(subject);
+    //     msg.setText(body);
+    //     mailSender.send(msg);
+    // }
+    //
+    // public void sendResetEmail(String to, String resetLink) {
+    //     String subject = "SCF - Réinitialisation de mot de passe";
+    //     String body = "Cliquez sur ce lien pour réinitialiser votre mot de passe :\n" + resetLink;
+    //     SimpleMailMessage msg = new SimpleMailMessage();
+    //     msg.setTo(to);
+    //     msg.setSubject(subject);
+    //     msg.setText(body);
+    //     mailSender.send(msg);
+    // }
 }
